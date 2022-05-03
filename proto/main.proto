@@ -1,0 +1,352 @@
+syntax = "proto3";
+
+package main;
+
+import "google/protobuf/empty.proto";
+
+message SetupStatus {
+    enum State {
+        UNDEFINED_STATE = 0;
+        FIRST_SETUP = 1;
+        SETUP = 2;
+        CONFIGURED = 3;
+    }
+    enum Step {
+        UNDEFINED_STEP = 0;
+        INPUT = 1;
+        NETWORK = 2;
+        AUTH = 5;
+        CHECK_UPDATE = 3;
+        UPDATE = 4;
+        ONBOARDING = 6;
+        QR_SETUP = 7;
+        ESA_AUTH = 8;
+        FACE = 9;
+        KEYBOARD = 10;
+        PARENTAL_PIN = 11;
+        WELCOME = 12;
+        SUGGEST_ESA_AUTH = 13;
+        CHANNEL_SETTINGS = 14;
+        SET_POSITION_DEVICE = 15;
+        IR_SETUP = 16;
+        INTRO = 17;
+    }
+    State state = 1;
+    Step step = 2;
+}
+
+enum WifiType {
+    OPEN = 0;
+    WEP = 1;
+    WPA = 2;
+}
+
+message WifiInfo {
+    string ssid = 1;
+    string bssid = 2;
+    bool is_hidden = 3;
+    WifiType wifi_type = 4;
+    int32 frequency = 5;
+    int32 channel = 6;
+    int32 rssi = 7;
+}
+
+message WifiList { repeated WifiInfo wifi_infos = 1; }
+
+message UpdateStatus {
+    reserved 4;
+    enum State {
+        UNDEFINED_STATE = 0;
+        IDLE = 1;
+        UPDATE = 2;
+        CRITICAL_UPDATE = 3;
+        DOWNLOADED_UPDATE = 4;
+        INSTALLING_UPDATE = 5;
+    }
+
+    State state = 1;
+    int64 update_size = 2;
+    int64 downloaded_size = 3;
+    int64 install_progress_percent = 5;
+}
+
+message StarBLEMessage {
+  enum Type {
+    UNDEFINED = 0;
+    DEVICE_INIT = 1;
+    RABBIT_HOLE = 2;
+    DEEPLINK = 3;
+  }
+
+  Type type = 1;
+  bytes data = 2;
+}
+
+message WifiConnect {
+    string ssid = 1;
+    string password = 2;
+    WifiType wifi_type = 3;
+    bool is_hidden = 4;
+}
+
+message DeviceInfo {
+  reserved 7, 9;
+  string device_id = 1;
+  string version = 2;
+  string vendor = 3;
+  string product = 4;
+  string brand_name = 5;
+  string display_name = 6;
+  bool guest_mode_enabled = 8;
+  string device_serial_number = 10;
+}
+
+message IrdRequest {
+  message SetMeUp {
+      DeviceInfo device_info = 1;
+      int32 rssi = 2;
+  }
+
+  message Poll { string poll_id = 1; }
+
+  message StartBleEasySetup {
+      enum Type {
+          FULL_FLOW = 0;     // Show full flow authorization
+          PIN_CODE = 1;      // Show screen for enter pin code
+          SELECT_DEVICE = 2; // Show state when we select device for setup
+          WAITING_SETUP = 3; // Show screen when we waiting settings
+      }
+      Type type = 1;
+  }
+
+  message RequestWithRssi { int32 rssi = 1; }
+
+  message RequestWifiListPortion {
+      uint32 start_index = 1;
+      uint32 count = 2;
+  }
+
+  message EsaStatusRequest { bool sign_user_code = 1; }
+
+  message WifiConnectRequest {
+      string ssid = 1;
+      WifiType wifi_type = 2;
+      bool is_hidden = 3;
+
+      message Password {
+          oneof type {
+              string raw_value = 1;
+              bytes encrypted_value = 2;
+          }
+      }
+      Password password = 4;
+  }
+
+  message ConnectionInfo { string client_name = 1; }
+
+  message EthernetConnectRequest {
+      oneof connection {
+          Empty is_dhcp = 1;
+          EthernetInfo static_ethernet_info = 2;
+      }
+  }
+
+  message GetReadyToEasySetupStatusRequest {
+      string device_id = 1;
+      string product = 2;
+      string display_name = 3;
+  }
+
+  string request_id = 1;
+  reserved 9, 10, 11, 14, 16, 24;
+  oneof request {
+      Empty get_setup_status = 2;
+      Empty get_wifi_list = 3;
+      WifiConnect wifi_connect = 4; // Deprecated
+      Poll network_connect_status = 5;
+      EsaStatusRequest get_esa_status = 6;
+      RequestWithRssi get_device_info = 7;
+      SetMeUp set_me_up = 8;
+      // Empty start_pin_input = 9;
+      // Empty get_pin = 10;
+      // Empty show_esa_code = 11;
+      Empty get_setup_info = 12;
+      // 13 is for setup_mode
+      //  Old  start_ble_easy_setup = 14;
+      WifiConnectRequest wifi_connect_request = 15; // Should be renamed to wifi_connect when 4 is deprecated
+      // Empty request_new_esa_registration = 16;
+      RequestWifiListPortion get_wifi_list_portion = 17; ///< wifi list by portion
+      ConnectionInfo connection_info = 18;
+      Empty guest_setup = 19;
+      Empty guest_logout = 20;
+      Empty get_device_update_status = 21;
+      Empty get_networks_list = 22;
+      EthernetConnectRequest ethernet_connect_request = 23;
+      // SetMeUp active_mode_set_me_up = 24; - removed
+      GetReadyToEasySetupStatusRequest get_ready_to_easy_setup_status = 25;
+  }
+
+  message SetupMode {
+      oneof mode {
+          Empty standard = 1;
+          Empty easy = 2;
+      }
+  }
+
+  SetupMode setup_mode = 13;
+}
+
+// message SberCastMessageType {
+//   UNDEFINED = 0;
+//   DIRECTIVE = 1;
+//   REQUEST = 2;
+//   STAR_COMMAND = 3;
+// }
+
+// message SberCastMessage {
+//   SberCastMessageType type = 1;
+//   string id = 2;
+// }
+
+
+message IrdResponse {
+    message EsaStatus {
+        message UserCode {
+            string code = 1;
+            bytes signature_bytes = 2;
+        }
+
+        oneof status {
+            Empty not_ready = 1;
+            UserCode user_code = 2;
+            Empty user_code_expired = 3;
+            Empty authorized = 4;
+        }
+    }
+
+    message NetworkConnectResponse {
+        message Error { string message = 1; }
+
+        oneof response {
+            string poll_id = 1;
+            Error error = 2;
+        }
+    }
+
+    message QueuedRequestStatus {
+        message Success {}
+        message Error { string error = 1; }
+        oneof status {
+            Empty not_found = 1;
+            Empty queued = 2;
+            Empty in_progress = 3;
+            Success success = 4;
+            Error error = 5;
+        }
+    }
+    message GetDeviceInfoResponse {
+        DeviceInfo device_info = 1;
+        bool ready_for_setup = 2;
+    }
+
+    message GetPinResponse { string pin = 1; }
+
+    message ShowEsaCodeResponse {
+        enum Status {
+            SUCCESS = 0;
+            WRONG_SETUP_STEP = 1;
+        }
+
+        Status status = 1;
+    }
+
+    message GetSetupInfoResponse {
+        enum ReadyToSetupFromClientStatus {
+            UNDEFINED = 0; /// backward compatibility
+            NOT_READY = 1;
+            READY = 2;
+        }
+
+        string device_id = 1;
+        string version = 2;
+        string product = 3;
+        string display_name = 4;
+        SetupStatus setup_status = 5;
+        bool guest_mode_enabled = 6;
+        string device_serial_number = 7;
+        ReadyToSetupFromClientStatus ready_to_setup_from_client = 8;
+        int32 protocol_version = 9;
+    }
+
+    message GetReadyToEasySetupStatusResponse {
+        string device_id = 1;
+        string version = 2;
+        string product = 3;
+        string display_name = 4;
+        string device_serial_number = 5;
+        bool ready_to_easy_setup = 6;
+        SetupStatus setup_status = 7;
+        bool activate_by_code = 8;
+    }
+
+    message NewEsaRegistrationResponse { bool new_esa_registration_requested = 1; }
+
+    message RequestWifiListPortionResponse {
+        WifiList wifi_list = 1;
+        uint32 start_index = 2;
+        uint32 max_list_size = 3;
+    }
+
+    message GuestSetupResponse {
+        enum Status {
+            ERROR = 0;
+            GUEST_SETUP_IN_PROGRESS = 1;
+            GUEST_MISMATCH = 2;
+            GUEST_MODE_DISABLED = 3;
+            ALREADY_SET_UP = 4;
+            LOGGED_OUT = 5;
+            NEED_CONNECTION_INFO = 6;
+        }
+        Status status = 1;
+    }
+
+    message GuestLogoutResponse {
+        enum Status {
+            ERROR = 0;
+            GUEST_MISMATCH = 1;
+            LOGGED_OUT = 2;
+        }
+        Status status = 1;
+    }
+
+    message RequestNetworksListResponse {
+        WifiList wifi_list = 1;
+        bool ethernet_available = 2;
+        EthernetInfo ethernet_info = 3;
+    }
+
+    string request_id = 1;
+    reserved 9, 10, 13, 14;
+    oneof response {
+        SetupStatus get_setup_status_response = 2;
+        WifiList get_wifi_list_response = 3;
+        NetworkConnectResponse network_connect_response = 4;
+        // TODO: more abstract QueuedRequestStatus?
+        QueuedRequestStatus network_connect_status_response = 5;
+        EsaStatus get_esa_status_response = 6;
+        GetDeviceInfoResponse get_device_info_response = 7;
+        Empty set_me_up_response = 8;
+        // Empty start_pin_input_response = 9;
+        // GetPinResponse get_pin_response = 10;
+        // ShowEsaCodeResponse show_esa_code_response = 11;
+        GetSetupInfoResponse get_setup_info_response = 12;
+        // NewEsaRegistrationResponse request_new_esa_registration_response = 14;
+        RequestWifiListPortionResponse get_wifi_list_portion_response = 15;
+        Empty connection_info_response = 16;
+        GuestSetupResponse guest_setup_response = 17;
+        GuestLogoutResponse guest_logout_response = 18;
+        UpdateStatus get_device_update_status_response = 19;
+        RequestNetworksListResponse get_networks_list_response = 20;
+        GetReadyToEasySetupStatusResponse get_ready_to_easy_setup_status_response = 25;
+    }
+}
